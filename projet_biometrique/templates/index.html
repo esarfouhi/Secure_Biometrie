@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biometric Control Center | Vision IA</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-glow: rgba(99, 102, 241, 0.3);
+            --accent: #22d3ee;
+            --bg-body: #020617;
+            --bg-card: rgba(15, 23, 42, 0.6);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --success: #10b981;
+            --danger: #f43f5e;
+            --warning: #f59e0b;
+            --border: rgba(255, 255, 255, 0.1);
+            --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        body.light-theme {
+            --bg-body: #f1f5f9;
+            --bg-card: rgba(255, 255, 255, 0.9);
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border: rgba(0, 0, 0, 0.1);
+            --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        * {
+            box-sizing: border-box;
+            transition: all 0.2s ease-in-out;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-body);
+            background-image:
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(34, 211, 238, 0.1) 0px, transparent 50%);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        /* --- Glassmorphism Effect --- */
+        .glass-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 24px;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 24px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .logo-section h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(to right, var(--text-main), var(--accent));
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 0;
+            letter-spacing: -0.5px;
+        }
+
+        .system-badge {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.05);
+            padding: 8px 16px;
+            border-radius: 100px;
+            border: 1px solid var(--border);
+        }
+
+        .status-dot {
+            height: 8px;
+            width: 8px;
+            background-color: var(--success);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--success);
+            animation: pulse-glow 2s infinite;
+        }
+
+        @keyframes pulse-glow {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 0 5px var(--success);
+                opacity: 1;
+            }
+
+            50% {
+                transform: scale(1.3);
+                box-shadow: 0 0 15px var(--success);
+                opacity: 0.7;
+            }
+
+            100% {
+                transform: scale(1);
+                box-shadow: 0 0 5px var(--success);
+                opacity: 1;
+            }
+        }
+
+        /* --- Door Visual --- */
+        .door-control {
+            text-align: center;
+            padding: 15px;
+        }
+
+        .door-status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border: 1px solid transparent;
+        }
+
+        .door-locked {
+            background: rgba(244, 63, 94, 0.1);
+            color: var(--danger);
+            border-color: rgba(244, 63, 94, 0.2);
+        }
+
+        .door-unlocked {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+            border-color: rgba(16, 185, 129, 0.2);
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+        }
+
+        /* --- Panels --- */
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 850px) {
+            .grid-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        h2 {
+            font-size: 1.1rem;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 0;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* --- Forms & Inputs --- */
+        .input-box {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .input-group-row {
+            display: flex;
+            gap: 12px;
+        }
+
+        .field-container {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            flex: 1;
+        }
+
+        label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        input,
+        select {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            outline: none;
+        }
+
+        input:focus,
+        select:focus {
+            border-color: var(--primary);
+            background: rgba(0, 0, 0, 0.4);
+            box-shadow: 0 0 0 3px var(--primary-glow);
+        }
+
+        /* --- Buttons --- */
+        .btn {
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 0.9rem;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 4px 12px var(--primary-glow);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px var(--primary-glow);
+        }
+
+        .btn-ghost {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-main);
+            border-color: var(--border);
+        }
+
+        .btn-ghost:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-danger-dim {
+            background: rgba(244, 63, 94, 0.1);
+            color: var(--danger);
+        }
+
+        .btn-danger-dim:hover {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-success-dim {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+        }
+
+        .btn-success-dim:hover {
+            background: var(--success);
+            color: white;
+        }
+
+        /* --- User List --- */
+        .user-item {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            background: var(--primary-glow);
+            color: var(--primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            border: 1px solid var(--primary);
+        }
+
+        .badge-id {
+            background: rgba(34, 211, 238, 0.1);
+            color: var(--accent);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+
+        /* --- Table --- */
+        .table-wrapper {
+            overflow-x: auto;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        th {
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-muted);
+            text-align: left;
+            padding: 16px;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.7rem;
+            letter-spacing: 1px;
+        }
+
+        td {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-main);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.01);
+        }
+
+        .ia-badge {
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            border-radius: 100px;
+            background: rgba(99, 102, 241, 0.1);
+            color: var(--primary);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+        }
+
+        /* --- Scrollbar --- */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-body);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <div class="logo-section">
+                <h1>VISION BIOMETRIC <span style="font-weight: 300; opacity: 0.5;">v2.0</span></h1>
+            </div>
+            <div class="system-badge">
+                <span class="status-dot"></span>
+                <span>SYSTÈME CONNECTÉ</span>
+                <span style="opacity: 0.3">|</span>
+                <span style="color: var(--primary)"><i class="fas fa-brain"></i> IA ACTIVE</span>
+            </div>
+            <div style="display: flex; gap: 12px; align-items: center;">
+                <button onclick="toggleTheme()" class="btn btn-ghost" id="theme-toggle"
+                    style="padding: 8px 12px; font-size: 0.85rem;">
+                    <i class="fas fa-moon" id="theme-icon"></i> Thème
+                </button>
+                <a href="/logout" class="btn btn-ghost"
+                    style="padding: 8px 16px; font-size: 0.85rem; text-decoration: none;">
+                    <i class="fas fa-sign-out-alt"></i> DÉCONNEXION
+                </a>
+            </div>
+        </header>
+
+        <div class="door-control glass-card" style="margin-bottom: 30px;">
+            <div id="door-status" class="door-status-badge door-locked">
+                <i class="fas fa-lock"></i> PORTE FERMÉE
+            </div>
+        </div>
+
+        <div class="grid-layout">
+            <!-- ADMINISTRATION PANEL -->
+            <div class="glass-card">
+                <h2><i class="fas fa-user-plus"></i> Inscription Employé</h2>
+                <div class="input-box">
+                    <div class="field-container">
+                        <label>Identité de l'employé</label>
+                        <input type="text" id="new-user-name" placeholder="Ex: Jean Reno">
+                    </div>
+                    <div class="input-group-row">
+                        <div class="field-container">
+                            <label>Niveau de Permission</label>
+                            <select id="new-user-role">
+                                <option value="Employé">Employé Standard</option>
+                                <option value="Administrateur">Administrateur</option>
+                                <option value="Visiteur">Visiteur Temporaire</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button onclick="registerNewUser()" class="btn btn-primary">
+                        <i class="fas fa-fingerprint"></i> Lancer l'Inscription
+                    </button>
+                    <div id="status-msg" style="font-size: 0.85rem; color: var(--text-muted); text-align: center;">
+                        En attente d'instruction...
+                    </div>
+                </div>
+                <div style="margin-top: 20px;">
+                    <button onclick="sendCommand('verify')" class="btn btn-ghost" style="width: 100%;">
+                        <i class="fas fa-search"></i> Réactiver Mode Scan
+                    </button>
+                </div>
+            </div>
+
+            <!-- USERS LIST -->
+            <div class="glass-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2><i class="fas fa-users-cog"></i> Annuaire Local</h2>
+                    <button onclick="sendCommand('sync_users')" class="btn btn-ghost"
+                        style="padding: 6px 12px; font-size: 0.75rem;">
+                        <i class="fas fa-sync"></i> Synchroniser
+                    </button>
+                </div>
+                <div id="users-container" style="max-height: 280px; overflow-y: auto; padding-right: 5px;">
+                    <span style="color: var(--text-muted);">Synchronisation en cours...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- LOGS TABLE -->
+        <div class="glass-card">
+            <h2><i class="fas fa-history"></i> Flux d'Accès & Analyse Prédictive</h2>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Horodatage</th>
+                            <th>Utilisateur</th>
+                            <th>Confiance</th>
+                            <th>Verdict</th>
+                            <th>Analyse IA</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logs-body">
+                        <tr id="no-data">
+                            <td colspan="5" style="text-align: center; color: var(--text-muted);">Initialisation du
+                                flux...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- THÈME ---
+        function toggleTheme() {
+            const body = document.body;
+            const icon = document.getElementById('theme-icon');
+            body.classList.toggle('light-theme');
+
+            const isLight = body.classList.contains('light-theme');
+            localStorage.setItem('theme', isLight ? 'light' : 'dark');
+            icon.className = isLight ? 'fas fa-sun' : 'fas fa-moon';
+        }
+
+        function applySavedTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            const icon = document.getElementById('theme-icon');
+            if (savedTheme === 'light') {
+                document.body.classList.add('light-theme');
+                if (icon) icon.className = 'fas fa-sun';
+            }
+        }
+
+        // --- LOGIQUE DE COMMUNICATION ---
+        async function sendCommand(action, id = 0) {
+            const statusDiv = document.getElementById('status-msg');
+            const labels = {
+                'verify': 'Mode SCAN activé.',
+                'enroll': 'INSCRIPTION : Suivez les instructions sur le capteur...',
+                'sync_users': 'Synchronisation de la base...',
+                'delete': 'Suppression effectuée.'
+            };
+
+            try {
+                const response = await fetch('/api/command', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: action, id: parseInt(id) })
+                });
+
+                if (response.ok) {
+                    statusDiv.textContent = labels[action] || `Action ${action} envoyée.`;
+                    statusDiv.style.color = "var(--success)";
+                    if (action === 'sync_users') setTimeout(updateUsersList, 2000);
+                }
+            } catch (e) {
+                statusDiv.textContent = "Erreur réseau.";
+                statusDiv.style.color = "var(--danger)";
+            }
+        }
+
+        // --- GESTION UTILISATEURS ---
+        async function registerNewUser() {
+            const name = document.getElementById('new-user-name').value.trim();
+            const role = document.getElementById('new-user-role').value;
+            const statusDiv = document.getElementById('status-msg');
+
+            if (!name) return alert("Nom requis.");
+
+            statusDiv.textContent = "Preparation du profil...";
+            try {
+                const resp = await fetch('/api/users', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, role })
+                });
+                const data = await resp.json();
+
+                if (resp.ok) {
+                    statusDiv.innerHTML = `<span style="color: var(--warning)">ID #${data.user.id} ACTIF. POSEZ LE DOIGT SUR LE CAPTEUR !</span>`;
+                    await sendCommand('enroll', data.user.id);
+                    document.getElementById('new-user-name').value = "";
+                } else {
+                    alert(data.error);
+                }
+            } catch (e) { alert("Erreur serveur."); }
+        }
+
+        async function deleteUser(id) {
+            if (!confirm(`Révoquer définitivement l'accès pour l'ID #${id} ?`)) return;
+            try {
+                const resp = await fetch(`/api/users/${id}`, { method: 'DELETE' });
+                if (resp.ok) {
+                    sendCommand('delete', id);
+                    updateUsersList();
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        async function toggleUser(id, currentStatus) {
+            try {
+                await fetch(`/api/users/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ is_active: !currentStatus })
+                });
+                updateUsersList();
+            } catch (e) { console.error(e); }
+        }
+
+        // --- MISE À JOUR UI ---
+        async function updateUsersList() {
+            try {
+                const resp = await fetch('/api/active_users');
+                const users = await resp.json();
+                const container = document.getElementById('users-container');
+
+                if (users.length > 0) {
+                    container.innerHTML = users.map(u => `
+                        <div class="user-item">
+                            <div class="user-info">
+                                <div class="user-avatar">${u.name.charAt(0)}</div>
+                                <div>
+                                    <div style="font-weight: 600; font-size: 0.9rem;">${u.name}</div>
+                                    <div style="display: flex; gap: 6px; align-items: center;">
+                                        <span class="badge-id">ID ${u.id}</span>
+                                        <span style="font-size: 11px; color: var(--text-muted)">${u.role}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <button onclick="toggleUser(${u.id}, ${u.is_active})" class="btn ${u.is_active ? 'btn-success-dim' : 'btn-danger-dim'}" style="padding: 6px 12px; font-size: 11px;">
+                                    ${u.is_active ? '<i class="fas fa-check"></i>' : '<i class="fas fa-ban"></i>'}
+                                </button>
+                                <button onclick="deleteUser(${u.id})" class="btn btn-danger-dim" style="padding: 6px 12px; font-size: 11px;">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    container.innerHTML = '<div style="text-align:center; padding: 20px; color: var(--text-muted); font-size: 0.8rem;">Aucune empreinte synchronisée.</div>';
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        async function updateLogs() {
+            try {
+                const resp = await fetch('/api/history');
+                const logs = await resp.json();
+                const tbody = document.getElementById('logs-body');
+                const doorDiv = document.getElementById('door-status');
+
+                if (logs.length > 0) {
+                    tbody.innerHTML = logs.map(log => `
+                        <tr>
+                            <td>${log.timestamp.split(' ')[1]}</td>
+                            <td>
+                                <div style="font-weight: 600;">${log.user_name}</div>
+                                <div class="badge-id" style="display:inline-block; margin-top: 2px;">#${log.finger_id}</div>
+                            </td>
+                            <td>
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <div style="flex:1; background:rgba(255,255,255,0.05); height:4px; border-radius:10px; overflow:hidden; min-width: 40px;">
+                                        <div style="width:${(log.confidence / 255) * 100}%; background:var(--accent); height:100%;"></div>
+                                    </div>
+                                    <span style="font-size: 11px; color: var(--text-muted)">${Math.round((log.confidence / 255) * 100)}%</span>
+                                </div>
+                            </td>
+                            <td>
+                                ${log.is_authorized
+                            ? '<span style="color: var(--success); font-weight:700;"><i class="fas fa-check-circle"></i> OK</span>'
+                            : '<span style="color: var(--danger); font-weight:700;"><i class="fas fa-times-circle"></i> BLOQUÉ</span>'}
+                            </td>
+                            <td><span class="ia-badge">${log.prediction_result}</span></td>
+                        </tr>
+                    `).join('');
+
+                    const lastLog = logs[0];
+                    const now = new Date();
+                    const logTime = new Date(lastLog.timestamp);
+                    const diff = (now - logTime) / 1000;
+
+                    if (diff < 5 && lastLog.is_authorized) {
+                        doorDiv.innerHTML = '<i class="fas fa-unlock"></i> PORTE OUVERTE';
+                        doorDiv.className = "door-status-badge door-unlocked";
+                    } else {
+                        doorDiv.innerHTML = '<i class="fas fa-lock"></i> PORTE FERMÉE';
+                        doorDiv.className = "door-status-badge door-locked";
+                    }
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        setInterval(updateLogs, 2000);
+        setInterval(updateUsersList, 5000);
+        applySavedTheme();
+        updateUsersList();
+        updateLogs();
+    </script>
+</body>
+
+</html>
