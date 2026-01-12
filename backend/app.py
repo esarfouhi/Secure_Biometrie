@@ -252,7 +252,6 @@ def command_route():
 active_users = []
 
 @app.route('/api/active_users', methods=['GET', 'POST'])
-@login_required
 def active_users_route():
     global active_users
     if request.method == 'POST':
