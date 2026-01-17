@@ -11,6 +11,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <!-- Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
         :root {
@@ -380,22 +382,55 @@
             border: 1px solid rgba(99, 102, 241, 0.2);
         }
 
-        /* --- Scrollbar --- */
-        ::-webkit-scrollbar {
-            width: 8px;
+        /* --- Navigation --- */
+        .nav-tabs {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+            padding: 5px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            border: 1px solid var(--border);
         }
 
-        ::-webkit-scrollbar-track {
-            background: var(--bg-body);
+        .nav-btn {
+            flex: 1;
+            padding: 10px;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--text-muted);
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 0.85rem;
         }
 
-        ::-webkit-scrollbar-thumb {
-            background: var(--border);
-            border-radius: 10px;
+        .nav-btn.active {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 4px 12px var(--primary-glow);
         }
 
-        ::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 255, 255, 0.2);
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr;
+            gap: 24px;
+        }
+
+        canvas {
+            max-height: 300px;
         }
     </style>
 </head>
@@ -424,81 +459,140 @@
             </div>
         </header>
 
-        <div class="door-control glass-card" style="margin-bottom: 30px;">
+        <div class="door-control glass-card"
+            style="margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center;">
             <div id="door-status" class="door-status-badge door-locked">
                 <i class="fas fa-lock"></i> PORTE FERMÉE
             </div>
+            <a href="/api/export/csv" class="btn btn-success-dim" style="text-decoration: none;">
+                <i class="fas fa-file-csv"></i> EXPORTER CSV
+            </a>
         </div>
 
-        <div class="grid-layout">
-            <!-- ADMINISTRATION PANEL -->
-            <div class="glass-card">
-                <h2><i class="fas fa-user-plus"></i> Inscription Employé</h2>
-                <div class="input-box">
-                    <div class="field-container">
-                        <label>Identité de l'employé</label>
-                        <input type="text" id="new-user-name" placeholder="Ex: Jean Reno">
-                    </div>
-                    <div class="input-group-row">
+        <div class="nav-tabs">
+            <button onclick="showTab('dashboard')" class="nav-btn active" id="btn-dashboard">
+                <i class="fas fa-th-large"></i> DASHBOARD
+            </button>
+            <button onclick="showTab('hr')" class="nav-btn" id="btn-hr">
+                <i class="fas fa-user-clock"></i> GESTION RH
+            </button>
+            <button onclick="showTab('stats')" class="nav-btn" id="btn-stats">
+                <i class="fas fa-chart-line"></i> ANALYTIQUE
+            </button>
+        </div>
+
+        <!-- DASHBOARD TAB -->
+        <div id="tab-dashboard" class="tab-content active">
+            <div class="grid-layout">
+                <!-- ADMINISTRATION PANEL -->
+                <div class="glass-card">
+                    <h2><i class="fas fa-user-plus"></i> Inscription Employé</h2>
+                    <div class="input-box">
                         <div class="field-container">
-                            <label>Niveau de Permission</label>
-                            <select id="new-user-role">
-                                <option value="Employé">Employé Standard</option>
-                                <option value="Administrateur">Administrateur</option>
-                                <option value="Visiteur">Visiteur Temporaire</option>
-                            </select>
+                            <label>Identité de l'employé</label>
+                            <input type="text" id="new-user-name" placeholder="Ex: Jean Reno">
+                        </div>
+                        <div class="input-group-row">
+                            <div class="field-container">
+                                <label>Niveau de Permission</label>
+                                <select id="new-user-role">
+                                    <option value="Employé">Employé Standard</option>
+                                    <option value="Administrateur">Administrateur</option>
+                                    <option value="Visiteur">Visiteur Temporaire</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button onclick="registerNewUser()" class="btn btn-primary">
+                            <i class="fas fa-fingerprint"></i> Lancer l'Inscription
+                        </button>
+                        <div id="status-msg" style="font-size: 0.85rem; color: var(--text-muted); text-align: center;">
+                            En attente d'instruction...
                         </div>
                     </div>
-                    <button onclick="registerNewUser()" class="btn btn-primary">
-                        <i class="fas fa-fingerprint"></i> Lancer l'Inscription
-                    </button>
-                    <div id="status-msg" style="font-size: 0.85rem; color: var(--text-muted); text-align: center;">
-                        En attente d'instruction...
+                    <div style="margin-top: 20px;">
+                        <button onclick="sendCommand('verify')" class="btn btn-ghost" style="width: 100%;">
+                            <i class="fas fa-search"></i> Réactiver Mode Scan
+                        </button>
                     </div>
                 </div>
-                <div style="margin-top: 20px;">
-                    <button onclick="sendCommand('verify')" class="btn btn-ghost" style="width: 100%;">
-                        <i class="fas fa-search"></i> Réactiver Mode Scan
-                    </button>
+
+                <!-- USERS LIST -->
+                <div class="glass-card">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2><i class="fas fa-users-cog"></i> Annuaire Local</h2>
+                        <button onclick="sendCommand('sync_users')" class="btn btn-ghost"
+                            style="padding: 6px 12px; font-size: 0.75rem;">
+                            <i class="fas fa-sync"></i> Synchroniser
+                        </button>
+                    </div>
+                    <div id="users-container" style="max-height: 280px; overflow-y: auto; padding-right: 5px;">
+                        <span style="color: var(--text-muted);">Synchronisation en cours...</span>
+                    </div>
                 </div>
             </div>
 
-            <!-- USERS LIST -->
-            <div class="glass-card">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h2><i class="fas fa-users-cog"></i> Annuaire Local</h2>
-                    <button onclick="sendCommand('sync_users')" class="btn btn-ghost"
-                        style="padding: 6px 12px; font-size: 0.75rem;">
-                        <i class="fas fa-sync"></i> Synchroniser
-                    </button>
-                </div>
-                <div id="users-container" style="max-height: 280px; overflow-y: auto; padding-right: 5px;">
-                    <span style="color: var(--text-muted);">Synchronisation en cours...</span>
+            <!-- LOGS TABLE -->
+            <div class="glass-card" style="margin-top: 24px;">
+                <h2><i class="fas fa-history"></i> Flux d'Accès & Analyse Prédictive</h2>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Horodatage</th>
+                                <th>Utilisateur</th>
+                                <th>Confiance</th>
+                                <th>Verdict</th>
+                                <th>Analyse IA</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logs-body">
+                            <tr id="no-data">
+                                <td colspan="5" style="text-align: center; color: var(--text-muted);">Initialisation du
+                                    flux...</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
 
-        <!-- LOGS TABLE -->
-        <div class="glass-card">
-            <h2><i class="fas fa-history"></i> Flux d'Accès & Analyse Prédictive</h2>
-            <div class="table-wrapper">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Horodatage</th>
-                            <th>Utilisateur</th>
-                            <th>Confiance</th>
-                            <th>Verdict</th>
-                            <th>Analyse IA</th>
-                        </tr>
-                    </thead>
-                    <tbody id="logs-body">
-                        <tr id="no-data">
-                            <td colspan="5" style="text-align: center; color: var(--text-muted);">Initialisation du
-                                flux...</td>
-                        </tr>
-                    </tbody>
-                </table>
+        <!-- HR TAB -->
+        <div id="tab-hr" class="tab-content">
+            <div class="glass-card">
+                <h2><i class="fas fa-stopwatch"></i> Pointeuse : Calcul du Temps de Travail (7 Jours)</h2>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Employé</th>
+                                <th>Arrivée (First)</th>
+                                <th>Départ (Last)</th>
+                                <th>Durée Totale</th>
+                            </tr>
+                        </thead>
+                        <tbody id="hr-body">
+                            <tr>
+                                <td colspan="5" style="text-align:center;">Calcul en cours...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- STATS TAB -->
+        <div id="tab-stats" class="tab-content">
+            <div class="stats-grid">
+                <div class="glass-card">
+                    <h2><i class="fas fa-clock"></i> Pics de Fréquentation (Par Heure)</h2>
+                    <canvas id="peakChart"></canvas>
+                </div>
+                <div class="glass-card">
+                    <h2><i class="fas fa-user-shield"></i> Taux de Succès vs Refus</h2>
+                    <canvas id="rateChart"></canvas>
+                </div>
             </div>
         </div>
     </div>
@@ -681,6 +775,90 @@
                         doorDiv.innerHTML = '<i class="fas fa-lock"></i> PORTE FERMÉE';
                         doorDiv.className = "door-status-badge door-locked";
                     }
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        // --- GESTION DES ONGLETS ---
+        function showTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+            document.getElementById(`btn-${tabId}`).classList.add('active');
+
+            if (tabId === 'hr') updateHRTable();
+            if (tabId === 'stats') updateStatsCharts();
+        }
+
+        // --- STATISTIQUES & CHARTS ---
+        let peakChart = null;
+        let rateChart = null;
+
+        async function updateStatsCharts() {
+            try {
+                const resp = await fetch('/api/stats');
+                const data = await resp.json();
+
+                // Peak Chart
+                const ctxPeak = document.getElementById('peakChart').getContext('2d');
+                const hours = Object.keys(data.peaks).sort();
+                const counts = hours.map(h => data.peaks[h]);
+
+                if (peakChart) peakChart.destroy();
+                peakChart = new Chart(ctxPeak, {
+                    type: 'line',
+                    data: {
+                        labels: hours.map(h => h + 'h'),
+                        datasets: [{
+                            label: 'Passages',
+                            data: counts,
+                            borderColor: '#6366f1',
+                            backgroundColor: 'rgba(99, 102, 241, 0.2)',
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+                });
+
+                // Rate Chart
+                const ctxRate = document.getElementById('rateChart').getContext('2d');
+                if (rateChart) rateChart.destroy();
+                rateChart = new Chart(ctxRate, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Succès', 'Refus'],
+                        datasets: [{
+                            data: [data.rates.success, data.rates.failure],
+                            backgroundColor: ['#10b981', '#f43f5e'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: { cutout: '70%', plugins: { legend: { position: 'bottom' } } }
+                });
+            } catch (e) { console.error(e); }
+        }
+
+        // --- TABLEAU RH ---
+        async function updateHRTable() {
+            try {
+                const resp = await fetch('/api/work_hours');
+                const data = await resp.json();
+                const tbody = document.getElementById('hr-body');
+
+                if (data.length > 0) {
+                    tbody.innerHTML = data.map(row => `
+                        <tr>
+                            <td>${row.date}</td>
+                            <td><span style="font-weight:600;">${row.name}</span></td>
+                            <td><span style="color:var(--success)">${row.clock_in}</span></td>
+                            <td><span style="color:var(--danger)">${row.clock_out}</span></td>
+                            <td><span class="ia-badge">${row.duration}</span></td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Aucune donnée valide pour les 7 derniers jours.</td></tr>';
                 }
             } catch (e) { console.error(e); }
         }

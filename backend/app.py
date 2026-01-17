@@ -1,14 +1,31 @@
 from flask import Flask, request, jsonify, render_template, session, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
-from datetime import datetime
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 import os
+import csv
+from io import StringIO
+from flask import make_response
+from sqlalchemy import func, cast, Date
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = "supersecretkeyforbiometrie" # Change this in production
-CORS(app)
+# Use a secret key from environment or fallback to a default (not recommended for production)
+app.secret_key = os.getenv("SECRET_KEY", "fallback-secret-key-replace-me")
+
+# Session Security Configuration
+app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevents JavaScript access to cookies
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'   # Protection against CSRF
+app.config['SESSION_COOKIE_SECURE'] = False      # Set to True if using HTTPS
+app.config['PERMANENT_SESSION_LIFETIME'] = 1800  # 30 minutes
+
 
 # Database configuration
 db_path = os.path.join(os.path.dirname(__file__), 'biometrie.db')
@@ -70,7 +87,9 @@ with app.app_context():
     db.create_all()
     # Create default admin if not exists
     if not Admin.query.filter_by(username='admin').first():
-        hashed_password = generate_password_hash('admin')
+        # Get password from environment or use a default for first-time setup
+        initial_password = os.getenv("INITIAL_ADMIN_PASSWORD", "admin")
+        hashed_password = generate_password_hash(initial_password)
         default_admin = Admin(username='admin', password=hashed_password)
         db.session.add(default_admin)
         db.session.commit()
@@ -104,6 +123,13 @@ def index():
 
 @app.route('/access', methods=['POST'])
 def register_access():
+    # Security: Verify API Key from Hardware/Bridge
+    api_key = request.headers.get('X-API-KEY')
+    expected_key = os.getenv("HARDWARE_API_KEY")
+    
+    if not api_key or api_key != expected_key:
+        return jsonify({"error": "Unauthorized hardware access"}), 401
+        
     data = request.json
     if not data or 'fingerID' not in data or 'confidence' not in data:
         return jsonify({"error": "Invalid data"}), 400
@@ -248,6 +274,97 @@ def command_route():
         cmd_str = f"{current_command.get('action', 'wait').upper()}:{current_command.get('id', 0)}"
         return cmd_str
 
+# --- HR & STATISTICS ENDPOINTS ---
+
+@app.route('/api/work_hours', methods=['GET'])
+@login_required
+def get_work_hours():
+    # Group by user and date, find min and max timestamp for "Authorized" scans
+    # Only for the last 7 days
+    seven_days_ago = datetime.utcnow() - timedelta(days=7)
+    
+    results = db.session.query(
+        Access.finger_id,
+        func.date(Access.timestamp).label('date'),
+        func.min(Access.timestamp).label('clock_in'),
+        func.max(Access.timestamp).label('clock_out')
+    ).filter(
+        Access.is_authorized == True,
+        Access.timestamp >= seven_days_ago
+    ).group_by(
+        Access.finger_id,
+        func.date(Access.timestamp)
+    ).all()
+
+    work_data = []
+    for r in results:
+        user = User.query.get(r.finger_id)
+        name = user.name if user else f"ID #{r.finger_id}"
+        
+        # Calculate duration
+        duration = r.clock_out - r.clock_in
+        hours = duration.total_seconds() / 3600
+        
+        work_data.append({
+            "name": name,
+            "date": str(r.date),
+            "clock_in": r.clock_in.strftime("%H:%M:%S"),
+            "clock_out": r.clock_out.strftime("%H:%M:%S"),
+            "duration": f"{hours:.2f}h"
+        })
+    
+    return jsonify(work_data)
+
+@app.route('/api/stats', methods=['GET'])
+@login_required
+def get_stats():
+    # 1. Peak Attendance (counts per hour)
+    peaks = db.session.query(
+        func.strftime('%H', Access.timestamp).label('hour'),
+        func.count(Access.id).label('count')
+    ).group_by('hour').all()
+    
+    peak_data = {str(h).zfill(2): count for h, count in peaks}
+    
+    # 2. Success vs Failure rate
+    success_count = Access.query.filter_by(is_authorized=True).count()
+    failure_count = Access.query.filter_by(is_authorized=False).count()
+    
+    return jsonify({
+        "peaks": peak_data,
+        "rates": {
+            "success": success_count,
+            "failure": failure_count
+        }
+    })
+
+@app.route('/api/export/csv', methods=['GET'])
+@login_required
+def export_csv():
+    logs = Access.query.order_by(Access.timestamp.desc()).all()
+    
+    si = StringIO()
+    cw = csv.writer(si)
+    cw.writerow(['ID', 'FingerID', 'User Name', 'Confidence', 'Authorized', 'Result', 'Timestamp'])
+    
+    for log in logs:
+        user = User.query.get(log.finger_id)
+        name = user.name if user else "Inconnu"
+        cw.writerow([
+            log.id, 
+            log.finger_id, 
+            name, 
+            log.confidence, 
+            log.is_authorized, 
+            log.prediction_result, 
+            log.timestamp
+        ])
+    
+    output = make_response(si.getvalue())
+    output.headers["Content-Disposition"] = "attachment; filename=historique_biometrie.csv"
+    output.headers["Content-type"] = "text/csv"
+    return output
+
 # --- ACTIVE USERS MANAGEMENT ---
 active_users = []
 
@@ -273,4 +390,6 @@ def active_users_route():
         return jsonify(results)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # Security: Binding to 127.0.0.1 (Localhost) ensures only local processes (like the bridge)
+    # can talk to Flask, protecting port 5000 from the external network.
+    app.run(host='127.0.0.1', port=5000, debug=True)

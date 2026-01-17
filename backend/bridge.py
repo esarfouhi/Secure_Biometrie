@@ -2,13 +2,19 @@ import serial
 import requests
 import json
 import time
+from dotenv import load_dotenv
+import os
+
+# Load credentials from .env
+load_dotenv()
 
 # --- CONFIGURATION ---
 # Port série (à vérifier dans Arduino IDE, ex: /dev/cu.usbserial-0001)
 SERIAL_PORT = '/dev/cu.usbserial-0001' 
 BAUD_RATE = 115200
 # URL de votre serveur Flask local
-SERVER_URL = 'http://localhost:5000/access'
+SERVER_URL = 'http://127.0.0.1:5000/access'
+API_KEY = os.getenv("HARDWARE_API_KEY")
 
 def start_bridge():
     print(f"🚀 Démarrage de la passerelle USB -> Flask...")
@@ -36,7 +42,8 @@ def start_bridge():
                             
                             # Envoyer au serveur Flask
                             print(f"📤 Envoi au serveur Flask ({SERVER_URL})...")
-                            response = requests.post(SERVER_URL, json=data)
+                            headers = {'X-API-KEY': API_KEY}
+                            response = requests.post(SERVER_URL, json=data, headers=headers)
                             
                             if response.status_code == 201:
                                 print("✅ Succès ! Donnée enregistrée en base.")
