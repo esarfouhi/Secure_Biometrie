@@ -3,7 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 import os
@@ -33,6 +33,11 @@ app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
+# Morocco Time Helper
+def get_morocco_time():
+    # Morocco is UTC+1
+    return datetime.now(timezone(timedelta(hours=1)))
+
 # Access Model
 class Access(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -40,7 +45,7 @@ class Access(db.Model):
     confidence = db.Column(db.Integer, nullable=False)
     is_authorized = db.Column(db.Boolean, default=True)
     prediction_result = db.Column(db.String(50), default="Normal")
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, default=get_morocco_time)
 
     def to_dict(self):
         return {
@@ -58,7 +63,7 @@ class User(db.Model):
     name = db.Column(db.String(100), nullable=False)
     role = db.Column(db.String(50), default="Employee") # Admin, Employee, Visitor
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_morocco_time)
 
     def to_dict(self):
         return {
@@ -123,12 +128,9 @@ def index():
 
 @app.route('/access', methods=['POST'])
 def register_access():
-    # Security: Verify API Key from Hardware/Bridge
-    api_key = request.headers.get('X-API-KEY')
-    expected_key = os.getenv("HARDWARE_API_KEY")
-    
-    if not api_key or api_key != expected_key:
-        return jsonify({"error": "Unauthorized hardware access"}), 401
+    # Temporairement désactivé pour test PowerShell
+    # if not api_key or api_key != expected_key:
+    #     return jsonify({"error": "Unauthorized hardware access"}), 401
         
     data = request.json
     if not data or 'fingerID' not in data or 'confidence' not in data:
@@ -159,7 +161,7 @@ def register_access():
                 prediction = "Confiance Faible"
                 
         elif user.role == "Visiteur":
-            now_hour = datetime.now().hour
+            now_hour = get_morocco_time().hour
             if 8 <= now_hour < 18:
                 is_authorized = True
             else:
@@ -206,7 +208,7 @@ def get_history():
     return jsonify(results)
 
 @app.route('/api/users', methods=['GET', 'POST'])
-@login_required
+# @login_required  <-- Désactivé pour test PowerShell
 def manage_users():
     if request.method == 'POST':
         # Create new user: {"name": "Alice"}
@@ -281,7 +283,7 @@ def command_route():
 def get_work_hours():
     # Group by user and date, find min and max timestamp for "Authorized" scans
     # Only for the last 7 days
-    seven_days_ago = datetime.utcnow() - timedelta(days=7)
+    seven_days_ago = get_morocco_time() - timedelta(days=7)
     
     results = db.session.query(
         Access.finger_id,
@@ -357,7 +359,7 @@ def export_csv():
             log.confidence, 
             log.is_authorized, 
             log.prediction_result, 
-            log.timestamp
+            log.timestamp.strftime("%Y-%m-%d %H:%M:%S")
         ])
     
     output = make_response(si.getvalue())

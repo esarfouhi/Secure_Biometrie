@@ -2,17 +2,26 @@ import serial
 import requests
 import json
 import time
-from dotenv import load_dotenv
 import os
+import platform
+from dotenv import load_dotenv
 
 # Load credentials from .env
 load_dotenv()
 
 # --- CONFIGURATION ---
-# Port série (à vérifier dans Arduino IDE, ex: /dev/cu.usbserial-0001)
-SERIAL_PORT = '/dev/cu.usbserial-0001' 
+def get_default_port():
+    system = platform.system()
+    if system == "Windows":
+        return 'COM3'  # À ajuster selon votre Gestionnaire de périphériques
+    elif system == "Darwin":  # macOS
+        return '/dev/cu.usbserial-0001'  # À ajuster selon ls /dev/cu.*
+    else:
+        return '/dev/ttyUSB0'  # Linux
+
+SERIAL_PORT = os.getenv("SERIAL_PORT", get_default_port())
 BAUD_RATE = 115200
-# URL de votre serveur Flask local
+# Utilisation de 127.0.0.1 au lieu de localhost pour éviter les lenteurs IPv6
 SERVER_URL = 'http://127.0.0.1:5000/access'
 API_KEY = os.getenv("HARDWARE_API_KEY")
 
@@ -58,7 +67,7 @@ def start_bridge():
                         try:
                             json_str = line.split("__USERS__:", 1)[1]
                             data = json.loads(json_str)
-                            requests.post('http://localhost:5000/api/active_users', json=data)
+                            requests.post('http://127.0.0.1:5000/api/active_users', json=data)
                             print("✅ Liste synchronisée avec le serveur.")
                         except Exception as e:
                             print(f"⚠️ Erreur de synchronisation : {e}")
@@ -72,7 +81,7 @@ def start_bridge():
                 time.sleep(0.1) 
                 
                 # On ne vérifie l'API que si le port est libre
-                resp = requests.get('http://localhost:5000/api/command', timeout=0.5)
+                resp = requests.get('http://127.0.0.1:5000/api/command', timeout=0.5)
                 if resp.status_code == 200:
                     cmd = resp.text.strip()
                     
@@ -83,7 +92,7 @@ def start_bridge():
                         ser.flush() # S'assurer que c'est bien parti
                         
                         # Reset immédiat de la commande sur le serveur
-                        requests.post('http://localhost:5000/api/command', json={"action": "wait", "id": 0})
+                        requests.post('http://127.0.0.1:5000/api/command', json={"action": "wait", "id": 0})
 
             except OSError as e:
                 if e.errno == 6:
